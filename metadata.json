@@ -1,0 +1,6 @@
+{
+  "name": "Social Tasker",
+  "description": "A single-screen unified dashboard to manage your daily To-Do lists and receive automatic message highlights and alerts from Instagram and Snapchat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

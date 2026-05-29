@@ -1,0 +1,13 @@
+{
+  "name": "social-tasker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Vercel-ready Social Tasker web app with a small suggestion API.",
+  "scripts": {
+    "test": "node tests/suggestions.test.js",
+    "build": "node tests/build-check.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

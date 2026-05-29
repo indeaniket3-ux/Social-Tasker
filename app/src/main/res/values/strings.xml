@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Social Tasker</string>
+    <string name="notification_listener_service_name">Social Tasker Listener</string>
+</resources>
