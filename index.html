@@ -55,7 +55,7 @@
                 <h2 id="taskHeading">Tasks</h2>
               </div>
               <button class="icon-button" id="clearDoneButton" title="Clear completed tasks" aria-label="Clear completed tasks">
-                <span aria-hidden="true">✓</span>
+                <span aria-hidden="true">OK</span>
               </button>
             </div>
 
@@ -113,7 +113,7 @@
                 <h2 id="inboxHeading">Social alerts</h2>
               </div>
               <button class="icon-button" id="markReadButton" title="Mark all messages read" aria-label="Mark all messages read">
-                <span aria-hidden="true">○</span>
+                <span aria-hidden="true">RD</span>
               </button>
             </div>
 
@@ -154,18 +154,42 @@
                 <h2 id="insightHeading">Next actions</h2>
               </div>
               <button class="icon-button" id="refreshSuggestionsButton" title="Refresh suggestions" aria-label="Refresh suggestions">
-                <span aria-hidden="true">↻</span>
+                <span aria-hidden="true">R</span>
               </button>
             </div>
             <div class="assistant-visual" aria-hidden="true">
               <img src="./assets/social-tasker-preview.svg" alt="" />
             </div>
             <div id="suggestionList" class="suggestion-list"></div>
+
+            <div class="calendar-box" aria-labelledby="calendarHeading">
+              <div class="panel-heading compact-heading">
+                <div>
+                  <p class="eyebrow">Calendar</p>
+                  <h2 id="calendarHeading">Reminders</h2>
+                </div>
+              </div>
+              <p class="calendar-status" id="calendarStatus">Checking Google Calendar setup...</p>
+              <div class="calendar-actions">
+                <button class="primary-button" id="connectCalendarButton" type="button">Connect Google</button>
+                <label>
+                  <span>Remind before</span>
+                  <select id="reminderMinutes">
+                    <option value="10">10 min</option>
+                    <option value="30" selected>30 min</option>
+                    <option value="60">1 hour</option>
+                    <option value="1440">1 day</option>
+                  </select>
+                </label>
+              </div>
+              <div id="calendarTaskList" class="calendar-task-list"></div>
+            </div>
           </aside>
         </section>
       </section>
     </main>
 
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="./assets/app.js" defer></script>
   </body>
 </html>

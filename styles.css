@@ -312,14 +312,16 @@ textarea:focus {
 
 .task-list,
 .message-list,
-.suggestion-list {
+.suggestion-list,
+.calendar-task-list {
   display: grid;
   gap: 10px;
 }
 
 .task-card,
 .message-card,
-.suggestion-card {
+.suggestion-card,
+.calendar-task-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -469,6 +471,72 @@ textarea:focus {
   color: var(--muted);
 }
 
+.calendar-box {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.compact-heading {
+  margin-bottom: 10px;
+}
+
+.calendar-status {
+  min-height: 42px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.calendar-status a {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.calendar-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.calendar-actions .primary-button {
+  align-self: end;
+}
+
+.calendar-actions .primary-button:disabled {
+  cursor: not-allowed;
+  background: #aeb8b4;
+}
+
+.calendar-task-card {
+  display: grid;
+  gap: 10px;
+}
+
+.calendar-task-card strong,
+.calendar-task-card span {
+  display: block;
+}
+
+.calendar-task-card span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.calendar-button {
+  justify-self: start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft-blue);
+  color: var(--blue);
+  padding: 8px 10px;
+  font-weight: 900;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;
@@ -506,8 +574,13 @@ textarea:focus {
 
   .summary-grid,
   .columns,
-  .form-row {
+  .form-row,
+  .calendar-actions {
     flex-direction: column;
+  }
+
+  .calendar-actions {
+    display: flex;
   }
 
   .priority-panel {

@@ -1,7 +1,12 @@
 const STORAGE_KEY = "social-tasker-state-v1";
+const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
 
 const state = loadState();
 let activeFilter = "all";
+let googleClientId = "";
+let calendarAccessToken = "";
+let tokenClient = null;
 
 const elements = {
   todayLabel: document.querySelector("#todayLabel"),
@@ -22,7 +27,11 @@ const elements = {
   markReadButton: document.querySelector("#markReadButton"),
   seedMessagesButton: document.querySelector("#seedMessagesButton"),
   clearMessagesButton: document.querySelector("#clearMessagesButton"),
-  refreshSuggestionsButton: document.querySelector("#refreshSuggestionsButton")
+  refreshSuggestionsButton: document.querySelector("#refreshSuggestionsButton"),
+  calendarStatus: document.querySelector("#calendarStatus"),
+  connectCalendarButton: document.querySelector("#connectCalendarButton"),
+  reminderMinutes: document.querySelector("#reminderMinutes"),
+  calendarTaskList: document.querySelector("#calendarTaskList")
 };
 
 elements.todayLabel.textContent = new Intl.DateTimeFormat(undefined, {
@@ -110,6 +119,7 @@ elements.seedMessagesButton.addEventListener("click", () => {
 });
 
 elements.refreshSuggestionsButton.addEventListener("click", renderSuggestions);
+elements.connectCalendarButton.addEventListener("click", connectGoogleCalendar);
 
 function loadState() {
   try {
@@ -164,6 +174,7 @@ function render() {
   renderSummary();
   renderTasks();
   renderMessages();
+  renderCalendarTasks();
   renderSuggestions();
 }
 
@@ -201,7 +212,7 @@ function renderTasks() {
 
   elements.taskList.innerHTML = tasks.map((task) => `
     <article class="task-card ${task.completed ? "done" : ""}">
-      <button class="check-button ${task.completed ? "done" : ""}" data-action="toggle" data-id="${task.id}" aria-label="Toggle ${escapeHtml(task.title)}">${task.completed ? "✓" : ""}</button>
+      <button class="check-button ${task.completed ? "done" : ""}" data-action="toggle" data-id="${task.id}" aria-label="Toggle ${escapeHtml(task.title)}">${task.completed ? "OK" : ""}</button>
       <div>
         <div class="task-title">${escapeHtml(task.title)}</div>
         <div class="meta-row">
@@ -211,7 +222,7 @@ function renderTasks() {
           ${task.due ? `<span class="tag">Due ${escapeHtml(task.due)}</span>` : ""}
         </div>
       </div>
-      <button class="delete-button" data-action="delete" data-id="${task.id}" aria-label="Delete ${escapeHtml(task.title)}">×</button>
+      <button class="delete-button" data-action="delete" data-id="${task.id}" aria-label="Delete ${escapeHtml(task.title)}">x</button>
     </article>
   `).join("");
 
@@ -257,6 +268,28 @@ function renderMessages() {
   });
 }
 
+function renderCalendarTasks() {
+  const openTasks = state.tasks.filter((task) => !task.completed).slice(0, 5);
+  if (!openTasks.length) {
+    elements.calendarTaskList.innerHTML = `<div class="empty-state">Open tasks will appear here for calendar reminders.</div>`;
+    return;
+  }
+
+  elements.calendarTaskList.innerHTML = openTasks.map((task) => `
+    <article class="calendar-task-card">
+      <div>
+        <strong>${escapeHtml(task.title)}</strong>
+        <span>${escapeHtml(task.due || "Next available hour")} - ${task.minutes || 25} min</span>
+      </div>
+      <button class="calendar-button" data-calendar-task="${task.id}" type="button">Add reminder</button>
+    </article>
+  `).join("");
+
+  elements.calendarTaskList.querySelectorAll("[data-calendar-task]").forEach((button) => {
+    button.addEventListener("click", () => addTaskToCalendar(button.dataset.calendarTask));
+  });
+}
+
 async function renderSuggestions() {
   const fallback = buildSuggestions(state.tasks, state.messages);
   elements.suggestionList.innerHTML = `<div class="empty-state">Refreshing suggestions...</div>`;
@@ -282,6 +315,135 @@ function renderSuggestionCards(result, apiBacked) {
       <p>${escapeHtml(item.detail)}</p>
     </article>
   `).join("");
+}
+
+async function loadCalendarConfig() {
+  try {
+    const response = await fetch("/api/google-config");
+    if (!response.ok) throw new Error("Google config unavailable");
+    const config = await response.json();
+    googleClientId = config.clientId || "";
+    elements.connectCalendarButton.disabled = !config.configured;
+    elements.calendarStatus.textContent = config.configured
+      ? "Google Calendar is ready to connect."
+      : "Add GOOGLE_CLIENT_ID in Vercel to enable calendar connection.";
+  } catch {
+    elements.connectCalendarButton.disabled = true;
+    elements.calendarStatus.textContent = "Calendar setup is available after deploying with GOOGLE_CLIENT_ID.";
+  }
+}
+
+async function connectGoogleCalendar() {
+  if (!googleClientId) {
+    elements.calendarStatus.textContent = "Calendar is not configured yet. Set GOOGLE_CLIENT_ID first.";
+    return;
+  }
+
+  try {
+    await waitForGoogleIdentity();
+    tokenClient = tokenClient || google.accounts.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: CALENDAR_SCOPE,
+      callback: (tokenResponse) => {
+        if (tokenResponse.error) {
+          elements.calendarStatus.textContent = "Google Calendar permission was not granted.";
+          return;
+        }
+        calendarAccessToken = tokenResponse.access_token;
+        elements.calendarStatus.textContent = "Connected. Choose a task to add a calendar reminder.";
+      }
+    });
+    tokenClient.requestAccessToken({ prompt: calendarAccessToken ? "" : "consent" });
+  } catch {
+    elements.calendarStatus.textContent = "Could not load Google Calendar sign-in. Try again in a moment.";
+  }
+}
+
+async function addTaskToCalendar(taskId) {
+  const task = state.tasks.find((item) => item.id === taskId);
+  if (!task) return;
+  if (!calendarAccessToken) {
+    elements.calendarStatus.textContent = "Connect Google Calendar before adding reminders.";
+    await connectGoogleCalendar();
+    return;
+  }
+
+  const event = buildCalendarEvent(task, Number(elements.reminderMinutes.value || 30));
+  elements.calendarStatus.textContent = "Adding reminder to Google Calendar...";
+
+  try {
+    const response = await fetch(CALENDAR_EVENTS_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${calendarAccessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(event)
+    });
+
+    if (response.status === 401) {
+      calendarAccessToken = "";
+      elements.calendarStatus.textContent = "Calendar session expired. Connect again.";
+      return;
+    }
+
+    if (!response.ok) throw new Error("Calendar insert failed");
+    const created = await response.json();
+    elements.calendarStatus.innerHTML = `Reminder added. <a href="${escapeHtml(created.htmlLink)}" target="_blank" rel="noreferrer">Open event</a>`;
+  } catch {
+    elements.calendarStatus.textContent = "Could not add reminder. Check Google Calendar API access and try again.";
+  }
+}
+
+function buildCalendarEvent(task, reminderMinutes) {
+  const start = getTaskStart(task);
+  const end = new Date(start.getTime() + Math.max(Number(task.minutes || 25), 5) * 60 * 1000);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  return {
+    summary: task.title,
+    description: `Created from Social Tasker. Category: ${task.category || "Task"}. Priority: ${task.priority || "Medium"}.`,
+    start: {
+      dateTime: start.toISOString(),
+      timeZone
+    },
+    end: {
+      dateTime: end.toISOString(),
+      timeZone
+    },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        {
+          method: "popup",
+          minutes: Number(reminderMinutes || 30)
+        }
+      ]
+    }
+  };
+}
+
+function getTaskStart(task) {
+  const start = task.due ? new Date(`${task.due}T09:00:00`) : new Date(Date.now() + 60 * 60 * 1000);
+  if (Number.isNaN(start.getTime())) return new Date(Date.now() + 60 * 60 * 1000);
+  return start;
+}
+
+function waitForGoogleIdentity() {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (window.google && google.accounts && google.accounts.oauth2) {
+        window.clearInterval(timer);
+        resolve();
+      }
+      if (attempts > 40) {
+        window.clearInterval(timer);
+        reject(new Error("Google Identity unavailable"));
+      }
+    }, 125);
+  });
 }
 
 function keywordPriority(text) {
@@ -348,3 +510,4 @@ function escapeHtml(value) {
 }
 
 render();
+loadCalendarConfig();

@@ -6,6 +6,7 @@ Social Tasker turns social messages into prioritized daily work. The uploaded pr
 
 - Static frontend dashboard in `index.html`, `styles.css`, and `assets/app.js`
 - Serverless suggestion API in `api/suggestions.js`
+- Google Calendar config endpoint in `api/google-config.js`
 - Shared prioritization logic in `shared/suggestionEngine.js`
 - Tests and deployment checks in `tests/`
 - Original Android source in `app/`
@@ -25,6 +26,31 @@ The frontend also works by opening `index.html`, but the suggestion API is avail
 ```bash
 vercel --prod
 ```
+
+## Google Calendar reminders
+
+The website can connect a user's Google Calendar and create reminder events from open tasks.
+
+Google setup:
+
+1. Create or open a Google Cloud project.
+2. Enable the Google Calendar API.
+3. Configure the OAuth consent screen.
+4. Create an OAuth 2.0 Client ID for a web application.
+5. Add the production origin to Authorized JavaScript origins:
+
+```text
+https://social-tasker-two.vercel.app
+```
+
+6. Add the client ID to Vercel:
+
+```bash
+vercel env add GOOGLE_CLIENT_ID production
+vercel --prod
+```
+
+The app requests only `https://www.googleapis.com/auth/calendar.events`, which allows creating and editing calendar events.
 
 ## Android app
 

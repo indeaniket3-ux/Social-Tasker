@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const { buildSuggestions, categoryFromText, keywordPriority, taskFromMessage } = require("../shared/suggestionEngine");
+const { buildCalendarEvent } = require("../shared/calendarEvent");
 
 assert.equal(keywordPriority("please approve before 5 today"), "High");
 assert.equal(keywordPriority("review the draft caption"), "Medium");
@@ -27,5 +28,17 @@ const result = buildSuggestions(
 assert.match(result.suggestions[0].title, /Urgent item/);
 assert.equal(result.convertedMessages.length, 1);
 assert.equal(result.stats.unreadMessages, 1);
+
+const event = buildCalendarEvent(
+  { title: "Review captions", category: "Work", priority: "High", due: "2026-05-30", minutes: 45 },
+  10,
+  "Asia/Calcutta",
+  new Date("2026-05-29T08:00:00Z")
+);
+
+assert.equal(event.summary, "Review captions");
+assert.equal(event.reminders.useDefault, false);
+assert.equal(event.reminders.overrides[0].minutes, 10);
+assert.equal(event.start.timeZone, "Asia/Calcutta");
 
 console.log("suggestion engine ok");
